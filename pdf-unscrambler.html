@@ -265,7 +265,10 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'unscrambled_document.pdf';
+
+        const frontFileName = frontPdfInput.files[0].name;
+        const baseName = frontFileName.toLowerCase().endsWith('.pdf') ? frontFileName.slice(0, -4) : frontFileName;
+        a.download = `${baseName}_unscrambled.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
