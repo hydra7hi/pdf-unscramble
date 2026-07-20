@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Unscrambler - Fix Your Scanned Documents</title>
+    <style>
+        :root {
+            --background-color: #f0f2f5;
+            --container-bg: #ffffff;
+            --text-color: #1c1e21;
+            --primary-color: #007bff;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --anim-blue: #007bff;
+            --anim-orange: #fd7e14;
+            --anim-green: #28a745;
+            --anim-red: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .main-container {
+            background: var(--container-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 3rem 2.5rem;
+            width: 100%;
+            max-width: 650px;
+        }
+        h1 {
+            font-size: 2.8rem;
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+        .problem-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .problem-section p {
+            font-size: 1.1rem;
+            color: #6c757d;
+            line-height: 1.6;
+            max-width: 550px;
+            margin: 0 auto 2.5rem auto;
+        }
+        /* --- Animation Section --- */
+        .animation-section {
+            height: 260px; /* Reduced height to remove extra space */
+            display: flex;
+            justify-content: center;
+            align-items: center; /* Vertically center the container */
+            margin: 1rem 0;
+        }
+        .animation-heading {
+            position: absolute;
+            top: -40px; /* Position headings above the animation container */
+            width: 100%;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-color);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        #anim-heading-front {
+            left: 0;
+            width: 50%;
+        }
+        #anim-heading-back {
+            right: 0;
+            width: 50%;
+        }
+
+        .animation-heading.visible {
+            opacity: 1;
+        }
+        .anim-container {
+            display: flex;
+            gap: 10px;
+            position: relative;
+            width: 420px;
+            height: 80px;
+        }
+        .anim-rect {
+            width: 60px;
+            height: 80px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            position: absolute;
+            transition: transform 0.8s ease-in-out, background-color 0.5s ease;
+        }
+
+        /* Keyframes for the sequence */
+        @keyframes run-sequence {
+            /* Step 1: Initial state - Blue, ordered 1-6 (Stays for ~1.5s) */
+            0%, 12% { transform: var(--transform-initial); background-color: var(--anim-blue); }
+
+            /* Step 2: Split into two groups */
+            22%, 45% {
+                transform: var(--transform-split);
+                background-color: var(--color-split);
+            }
+
+            /* Step 3: Sort into final line, one by one */
+            55% { transform: var(--transform-sort-1); background-color: var(--color-split); }
+            58% { transform: var(--transform-sort-2); background-color: var(--color-split); }
+            61% { transform: var(--transform-sort-3); background-color: var(--color-split); }
+            64% { transform: var(--transform-sort-4); background-color: var(--color-split); }
+            67% { transform: var(--transform-sort-5); background-color: var(--color-split); }
+            70%, 75% { transform: var(--transform-sort-6); background-color: var(--color-split); }
+
+            /* Step 4: Flash and stay Red (Stays for ~3s) */
+            80% { transform: var(--transform-sort-6); background-color: var(--anim-red); }
+            81% { transform: var(--transform-sort-6); background-color: var(--color-split); }
+            82% { transform: var(--transform-sort-6); background-color: var(--anim-red); }
+            83% { transform: var(--transform-sort-6); background-color: var(--color-split); }
+            84% { transform: var(--transform-sort-6); background-color: var(--anim-red); }
+            85%, 100% {
+                transform: var(--transform-sort-6);
+                background-color: var(--anim-red);
+            }
+        }
+
+        .anim-rect {
+            animation: run-sequence 12s infinite ease-in-out;
+        }
+
+        /* Stagger the final flash */
+        .anim-rect.r2 { animation-delay: 0.05s; }
+        .anim-rect.r3 { animation-delay: 0.1s; }
+        .anim-rect.r4 { animation-delay: 0.15s; }
+        .anim-rect.r5 { animation-delay: 0.2s; }
+        .anim-rect.r6 { animation-delay: 0.25s; }
+
+        .solution-section {
+            margin-top: 2rem;
+        }
+        .solution-section p {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-bottom: 2rem;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 18px 35px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-decoration: none;
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+            animation: pulse 2s infinite;
+        }
+        .cta-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            animation-play-state: paused;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 20px rgba(0, 123, 255, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+            .main-container {
+                padding: 2rem 1.5rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="problem-section">
+        <h1>Got a Scrambled PDF?</h1>
+        <h2>From scanning a two-sided document on a one-sided scanner..</h2>
+        <p>You get two files: one with the front pages (1, 3, 5...) <br> another with the back pages in reverse (...6, 4, 2). <br> <br> Piecing that digital puzzle together is a nightmare!</p>
+    </div>
+
+    <hr style="border: 0; height: 1px; background: #dddfe2; margin: 2rem 0;">
+
+    <div class="animation-section">
+        <div class="anim-container">
+            <div id="anim-heading-1" class="animation-heading">Your Document.</div>
+            <div id="anim-heading-front" class="animation-heading">Front pages.</div>
+            <div id="anim-heading-back" class="animation-heading">Back pages.</div>            <div id="anim-heading-3" class="animation-heading">Unscramble.</div>
+            <div id="anim-heading-4" class="animation-heading">Save!</div>
+
+            <!-- The rectangles will be positioned by CSS -->
+            <div class="anim-rect r1">1</div>
+            <div class="anim-rect r2">2</div>
+            <div class="anim-rect r3">3</div>
+            <div class="anim-rect r4">4</div>
+            <div class="anim-rect r5">5</div>
+            <div class="anim-rect r6">6</div>
+        </div>
+    </div>
+
+    <div class="solution-section">
+        <p>It's time to unscramble the mess. For free.</p>
+        <a href="./pdf-unscrambler.html" class="cta-button">
+            The PDF Unscrambler
+        </a>
+    </div>
+</div>
+
+<script>
+    // This script sets the CSS variables needed for the animation steps.
+    document.addEventListener("DOMContentLoaded", function() {
+        const headings = [
+            document.getElementById('anim-heading-1'),
+            [document.getElementById('anim-heading-front'), document.getElementById('anim-heading-back')],
+            document.getElementById('anim-heading-3'), // Unscramble.
+            document.getElementById('anim-heading-4')
+        ];
+        const rects = document.querySelectorAll('.anim-rect');
+        const containerWidth = 420;
+        const rectWidth = 60;
+        const gap = 10;
+
+        // Centered logic for split positions
+        const groupGap = 20; // The space between the two groups
+        const groupWidth = (3 * rectWidth) + (2 * gap); // 200px
+        const totalContentWidth = (2 * groupWidth) + groupGap; // 420px
+        const startOffset = (containerWidth - totalContentWidth) / 2; // This will be 0
+        const splitPositions = {
+            '1': startOffset, '3': startOffset + (rectWidth + gap), '5': startOffset + 2 * (rectWidth + gap),
+            '6': startOffset + groupWidth + groupGap, '4': startOffset + groupWidth + groupGap + (rectWidth + gap), '2': startOffset + groupWidth + groupGap + 2 * (rectWidth + gap)
+        };
+
+        rects.forEach((rect, index) => {
+            const num = index + 1;
+            const isOdd = num % 2 !== 0;
+
+            // Initial position (1, 2, 3, 4, 5, 6)
+            const initialX = index * (rectWidth + gap);
+            rect.style.left = `${initialX}px`;
+
+            // --transform-initial: The very start of the animation (no movement)
+            rect.style.setProperty('--transform-initial', `translateX(0px) translateY(0px)`);
+
+            // --transform-split: Position for the "problem" state
+            const splitX = splitPositions[num] - initialX;
+            rect.style.setProperty('--transform-split', `translateX(${splitX}px) translateY(40px)`);
+
+            // --color-split: Color for the "problem" state
+            const splitColor = isOdd ? 'var(--anim-orange)' : 'var(--anim-green)';
+            rect.style.setProperty('--color-split', splitColor);
+
+            // --transform-sorted: Position for the final sorted line
+            const sortedY = 120; // Move the final line down
+            const sortedX = (num - 1) * (rectWidth + gap);
+
+            // Create CSS variables for each step of the one-by-one sort
+            for (let i = 1; i <= 6; i++) {
+                const currentTransform = (num <= i) ? `translateX(${sortedX - initialX}px) translateY(${sortedY}px)` : `translateX(${splitX}px) translateY(40px)`;
+                rect.style.setProperty(`--transform-sort-${i}`, currentTransform);
+            }
+
+            // Add class for staggering
+            rect.classList.add(`r${num}`);
+        });
+
+        // Logic to show the correct heading based on animation time
+        const animationDuration = 12000; // 12s in ms
+        const headingTimings = [
+            { start: 0, end: 12, el: headings[0] },     // Your Document.
+            { start: 22, end: 45, el: headings[1] },    // After Scanning.
+            { start: 55, end: 75, el: headings[2] },    // Unscramble. (Covers all sort steps)
+            { start: 85, end: 100, el: headings[3] }    // Save!
+        ];
+
+        function updateHeadings() {
+            // We use the first rectangle's animation to get the current time
+            const computedStyle = window.getComputedStyle(rects[0]);
+            let elapsedTime = (new Date().getTime() - performance.timing.navigationStart) % animationDuration;
+            const animName = computedStyle.animationName;
+            if (animName !== 'none') {
+                 elapsedTime = (parseFloat(computedStyle.animationDelay) * 1000 + parseFloat(computedStyle.animationDuration) * 1000 * (performance.now() / 1000 / parseFloat(computedStyle.animationDuration) % 1)) % animationDuration;
+            }
+            const percentComplete = (elapsedTime / animationDuration) * 100;
+
+            headings.flat().forEach(h => h.classList.remove('visible'));
+
+            const activeHeading = headingTimings.find(t => percentComplete >= t.start && percentComplete < t.end);
+            if (activeHeading) {
+                if (Array.isArray(activeHeading.el)) {
+                    activeHeading.el.forEach(h => h.classList.add('visible'));
+                } else {
+                    activeHeading.el.classList.add('visible');
+                }
+            }
+            requestAnimationFrame(updateHeadings);
+        }
+        updateHeadings();
+    });
+</script>
+
+</body>
+</html>

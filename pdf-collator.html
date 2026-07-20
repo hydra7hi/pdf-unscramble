@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Page Collator</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
+
+    <style>
+        :root {
+            --background-color: #f0f2f5;
+            --container-bg: #ffffff;
+            --text-color: #1c1e21;
+            --primary-color: #007bff;
+            --border-color: #dddfe2;
+            --shadow: 0 2px 4px rgba(0,0,0,0.1);
+            --error-color: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .main-container {
+            background: var(--container-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            width: 100%;
+            max-width: 900px;
+        }
+        h1 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .upload-box {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .upload-box label {
+            font-weight: 600;
+        }
+        .upload-box p {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin: 0;
+        }
+        input[type="file"] {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .primary-button {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .primary-button:hover {
+            background-color: #0056b3;
+        }
+        .primary-button:disabled {
+            background-color: #a0c7ff;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 1rem;
+            font-weight: 500;
+        }
+        .error {
+            color: var(--error-color);
+        }
+        #preview-container {
+            margin-top: 1rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+        #preview-container h2 {
+            margin-top: 0;
+        }
+        #preview-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            background-color: #e9e9e9;
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            min-height: 100px;
+        }
+        .preview-page {
+            border: 1px solid #ccc;
+            box-shadow: var(--shadow);
+        }
+        @media (max-width: 600px) {
+            .upload-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <h1>PDF Page Collator</h1>
+
+    <div class="upload-section">
+        <div class="upload-box">
+            <label for="front-pdf">Load Front Pages PDF</label>
+            <p>Select the PDF containing the odd-numbered pages (1, 3, 5...).</p>
+            <input type="file" id="front-pdf" accept=".pdf">
+        </div>
+        <div class="upload-box">
+            <label for="back-pdf">Load Back Pages PDF</label>
+            <p>Select the PDF with even pages in reverse order (...6, 4, 2).</p>
+            <input type="file" id="back-pdf" accept=".pdf">
+        </div>
+    </div>
+
+    <div class="actions">
+        <button id="collate-btn" class="button primary-button" disabled>Collate & Preview</button>
+        <button id="export-btn" class="button primary-button" disabled>Export as PDF</button>
+    </div>
+
+    <div id="status"></div>
+
+    <div id="preview-container" style="display: none;">
+        <h2>Preview</h2>
+        <div id="preview-area"></div>
+    </div>
+</div>
+
+<script>
+    const frontPdfInput = document.getElementById('front-pdf');
+    const backPdfInput = document.getElementById('back-pdf');
+    const collateBtn = document.getElementById('collate-btn');
+    const exportBtn = document.getElementById('export-btn');
+    const statusEl = document.getElementById('status');
+    const previewContainer = document.getElementById('preview-container');
+    const previewArea = document.getElementById('preview-area');
+
+    const { PDFDocument } = PDFLib;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js`;
+
+    let collatedPdfBytes = null;
+
+    function checkInputs() {
+        const bothFilesSelected = frontPdfInput.files.length > 0 && backPdfInput.files.length > 0;
+        collateBtn.disabled = !bothFilesSelected;
+    }
+
+    frontPdfInput.addEventListener('change', checkInputs);
+    backPdfInput.addEventListener('change', checkInputs);
+
+    collateBtn.addEventListener('click', async () => {
+        statusEl.textContent = 'Processing...';
+        statusEl.className = '';
+        previewArea.innerHTML = '';
+        previewContainer.style.display = 'none';
+        exportBtn.disabled = true;
+        collatedPdfBytes = null;
+
+        try {
+            const frontFile = frontPdfInput.files[0];
+            const backFile = backPdfInput.files[0];
+
+            const frontBytes = await frontFile.arrayBuffer();
+            const backBytes = await backFile.arrayBuffer();
+
+            const frontPdf = await PDFDocument.load(frontBytes);
+            const backPdf = await PDFDocument.load(backBytes);
+
+            const collatedPdf = await PDFDocument.create();
+
+            const frontPageCount = frontPdf.getPageCount();
+            const backPageCount = backPdf.getPageCount();
+
+            const totalPages = frontPageCount + backPageCount;
+
+            for (let i = 0; i < frontPageCount; i++) {
+                // Add odd page
+                const [frontPage] = await collatedPdf.copyPages(frontPdf, [i]);
+                collatedPdf.addPage(frontPage);
+
+                // Add corresponding even page (from the back, in reverse)
+                if (i < backPageCount) {
+                    const backPageIndex = backPageCount - 1 - i;
+                    const [backPage] = await collatedPdf.copyPages(backPdf, [backPageIndex]);
+                    collatedPdf.addPage(backPage);
+                }
+            }
+
+            collatedPdfBytes = await collatedPdf.save();
+            statusEl.textContent = `Success! Collated ${totalPages} pages.`;
+            exportBtn.disabled = false;
+
+            // Generate preview
+            await generatePreview(collatedPdfBytes);
+
+        } catch (error) {
+            console.error(error);
+            statusEl.textContent = `An error occurred: ${error.message}`;
+            statusEl.className = 'error';
+        }
+    });
+
+    async function generatePreview(pdfBytes) {
+        previewContainer.style.display = 'block';
+        const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
+        const pdf = await loadingTask.promise;
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 0.5 });
+
+            const canvas = document.createElement('canvas');
+            canvas.className = 'preview-page';
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            previewArea.appendChild(canvas);
+
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            await page.render(renderContext).promise;
+        }
+    }
+
+    exportBtn.addEventListener('click', () => {
+        if (!collatedPdfBytes) {
+            alert('No collated PDF to export. Please collate first.');
+            return;
+        }
+
+        const blob = new Blob([collatedPdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'collated_document.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+</script>
+</body>
+</html>
