@@ -67,6 +67,11 @@
             border: 1px solid var(--border-color);
             border-radius: 4px;
         }
+        #output-filename {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
         .actions {
             display: flex;
             gap: 1rem;
@@ -147,10 +152,17 @@
 
     <div class="actions">
         <button id="collate-btn" class="button primary-button" disabled>Unscramble & Preview</button>
-        <button id="export-btn" class="button primary-button" disabled>Export as PDF</button>
     </div>
 
     <div id="status"></div>
+
+    <div id="export-section" style="display: none; margin-top: 1.5rem; display: none; align-items: flex-end; gap: 1rem;">
+        <div class="upload-box">
+            <label for="output-filename">Save as</label>
+            <input type="text" id="output-filename">
+        </div>
+        <button id="export-btn" class="button primary-button">Export as PDF</button>
+    </div>
 
     <div id="preview-container" style="display: none;">
         <h2>Preview</h2>
@@ -162,7 +174,9 @@
     const frontPdfInput = document.getElementById('front-pdf');
     const backPdfInput = document.getElementById('back-pdf');
     const collateBtn = document.getElementById('collate-btn');
+    const exportSection = document.getElementById('export-section');
     const exportBtn = document.getElementById('export-btn');
+    const outputFilenameInput = document.getElementById('output-filename');
     const statusEl = document.getElementById('status');
     const previewContainer = document.getElementById('preview-container');
     const previewArea = document.getElementById('preview-area');
@@ -185,7 +199,7 @@
         statusEl.className = '';
         previewArea.innerHTML = '';
         previewContainer.style.display = 'none';
-        exportBtn.disabled = true;
+        exportSection.style.display = 'none';
         unscrambledPdfBytes = null;
 
         try {
@@ -220,7 +234,12 @@
 
             unscrambledPdfBytes = await unscrambledPdf.save();
             statusEl.textContent = `Success! Unscrambled ${totalPages} pages.`;
-            exportBtn.disabled = false;
+
+            const frontFileName = frontPdfInput.files[0].name;
+            const baseName = frontFileName.toLowerCase().endsWith('.pdf') ? frontFileName.slice(0, -4) : frontFileName;
+            outputFilenameInput.value = `${baseName}_unscrambled.pdf`;
+
+            exportSection.style.display = 'flex';
 
             // Generate preview
             await generatePreview(unscrambledPdfBytes);
@@ -268,9 +287,7 @@
         const a = document.createElement('a');
         a.href = url;
 
-        const frontFileName = frontPdfInput.files[0].name;
-        const baseName = frontFileName.toLowerCase().endsWith('.pdf') ? frontFileName.slice(0, -4) : frontFileName;
-        a.download = `${baseName}_unscrambled.pdf`;
+        a.download = outputFilenameInput.value || 'unscrambled.pdf';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
